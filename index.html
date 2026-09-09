@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>URL Reputation Bench</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;450;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="bar">
+  <span class="bar-name">URL Reputation Bench</span>
+  <span class="bar-mode" id="modeBadge">connecting</span>
+</header>
+
+<main class="page">
+
+  <section class="intake" id="intake">
+    <h1>Check a batch of URLs against VirusTotal.</h1>
+    <p class="lede">
+      One per line. Defanged indicators are fine — <code>hxxps://</code> and
+      <code>[.]</code> get rewritten before the lookup.
+    </p>
+
+    <textarea id="input" spellcheck="false" rows="7"
+      placeholder="https://example.com/login&#10;hxxps://secure-update[.]xyz/verify&#10;paypa1-billing.com/account"></textarea>
+
+    <div class="controls">
+      <button id="scanBtn" class="go">Scan URLs</button>
+      <label class="delay">
+        Pause between lookups
+        <input id="delay" type="number" min="0" max="60" step="1" value="6">
+        <span>sec</span>
+      </label>
+      <span class="count" id="urlCount"></span>
+    </div>
+  </section>
+
+  <section class="run" id="run" hidden>
+    <div class="run-line">
+      <div class="run-track"><div class="run-fill" id="runFill"></div></div>
+      <span class="run-count" id="runCount"></span>
+    </div>
+    <p class="run-text" id="runText" aria-live="polite"></p>
+  </section>
+
+  <section class="board" id="board" hidden>
+    <div class="board-head">
+      <div class="tally" id="tally"></div>
+      <div class="board-tools">
+        <label class="toggle">
+          <input type="checkbox" id="flaggedOnly">
+          <span>Flagged only</span>
+        </label>
+        <button class="ghost" id="exportBtn">Export JSON</button>
+        <button class="ghost" id="resetBtn">New batch</button>
+      </div>
+    </div>
+    <ol class="rows" id="rows"></ol>
+  </section>
+
+  <section class="blank" id="blank">
+    <p>Results appear here as each URL comes back.</p>
+  </section>
+
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>

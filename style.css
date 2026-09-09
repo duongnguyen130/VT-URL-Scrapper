@@ -1,0 +1,461 @@
+/* ---------------------------------------------------------------------------
+   URL Reputation Bench
+
+   One rule governs the palette: colour is a verdict. Every pixel of chrome is
+   greyscale, so the only saturated marks on screen are engine findings. If it
+   is red, an engine flagged something. Nothing decorative is allowed to be.
+--------------------------------------------------------------------------- */
+
+:root {
+  --paper:      #edeff2;
+  --surface:    #ffffff;
+  --sunken:     #e3e6eb;
+  --rule:       #d3d8e0;
+  --rule-soft:  #e6e9ee;
+  --ink:        #16181d;
+  --ink-mid:    #5a616e;
+  --ink-faint:  #8c93a1;
+
+  --malicious:  #c42b3a;
+  --suspicious: #b8730e;
+  --harmless:   #2e7d4f;
+  --unknown:    #b6bcc6;
+
+  --sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  --gut: 22px;
+}
+
+* { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font: 400 15px/1.55 var(--sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+code {
+  font: 500 0.92em/1 var(--mono);
+  background: var(--sunken);
+  padding: 1px 4px;
+  border-radius: 2px;
+}
+
+button { font-family: inherit; cursor: pointer; }
+
+:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+/* --- top bar --------------------------------------------------------- */
+
+.bar {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px var(--gut);
+  border-bottom: 1px solid var(--rule);
+  background: var(--surface);
+}
+
+.bar-name {
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: -0.005em;
+}
+
+.bar-mode {
+  font: 400 12px/1 var(--mono);
+  color: var(--ink-faint);
+}
+
+/* --- page ------------------------------------------------------------ */
+
+.page {
+  max-width: 940px;
+  margin: 0 auto;
+  padding: 40px var(--gut) 80px;
+}
+
+/* --- intake: the hero is the thing you actually do first ------------- */
+
+.intake h1 {
+  margin: 0 0 8px;
+  font-size: clamp(24px, 4vw, 34px);
+  font-weight: 450;
+  line-height: 1.18;
+  letter-spacing: -0.02em;
+  max-width: 20ch;
+}
+
+.lede {
+  margin: 0 0 22px;
+  max-width: 58ch;
+  color: var(--ink-mid);
+  font-size: 14.5px;
+}
+
+#input {
+  width: 100%;
+  padding: 16px 18px;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  background: var(--surface);
+  color: var(--ink);
+  font: 400 13.5px/1.75 var(--mono);
+  resize: vertical;
+  min-height: 150px;
+}
+
+#input::placeholder { color: var(--ink-faint); }
+
+#input:focus {
+  outline: none;
+  border-color: var(--ink-mid);
+  box-shadow: inset 0 0 0 1px var(--ink-mid);
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 18px;
+  margin-top: 16px;
+}
+
+.go {
+  padding: 11px 26px;
+  border: 0;
+  border-radius: 3px;
+  background: var(--ink);
+  color: var(--paper);
+  font-size: 14.5px;
+  font-weight: 500;
+}
+
+.go:hover { background: #2c2f38; }
+
+.go:disabled {
+  background: var(--ink-faint);
+  cursor: progress;
+}
+
+.delay {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13.5px;
+  color: var(--ink-mid);
+}
+
+.delay input {
+  width: 52px;
+  padding: 6px 8px;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  background: var(--surface);
+  color: var(--ink);
+  font: 400 13px/1 var(--mono);
+}
+
+.count {
+  margin-left: auto;
+  font: 400 13px/1 var(--mono);
+  color: var(--ink-faint);
+}
+
+/* --- progress -------------------------------------------------------- */
+
+.run { margin-top: 26px; }
+
+.run-line {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.run-track {
+  flex: 1;
+  height: 3px;
+  background: var(--sunken);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.run-fill {
+  height: 100%;
+  width: 0;
+  background: var(--ink);
+  transition: width 0.35s ease;
+}
+
+.run-count {
+  font: 500 12.5px/1 var(--mono);
+  color: var(--ink-mid);
+  white-space: nowrap;
+}
+
+/* Holds either the live URL or a quip. Fixed height so swapping between the
+   two never nudges the layout. */
+.run-text {
+  margin: 10px 0 0;
+  min-height: 1.5em;
+  font: 400 12.5px/1.5 var(--mono);
+  color: var(--ink-mid);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Quips are dead-air filler, so they sit back: sans, lighter, quieter. */
+.run-text.is-quip {
+  font: 400 13px/1.5 var(--sans);
+  color: var(--ink-faint);
+  animation: quip-in 0.3s ease;
+}
+
+@keyframes quip-in {
+  from { opacity: 0; transform: translateY(3px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* --- board ----------------------------------------------------------- */
+
+.board { margin-top: 34px; }
+
+.board-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.tally {
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+  font-size: 13.5px;
+  color: var(--ink-mid);
+}
+
+.tally b {
+  color: var(--ink);
+  font-weight: 600;
+  font-family: var(--mono);
+  font-size: 14px;
+}
+
+.board-tools {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13.5px;
+  color: var(--ink-mid);
+  cursor: pointer;
+}
+
+.toggle input { accent-color: var(--ink); }
+
+.ghost {
+  padding: 6px 12px;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  background: transparent;
+  color: var(--ink-mid);
+  font-size: 13px;
+}
+
+.ghost:hover {
+  border-color: var(--ink-mid);
+  color: var(--ink);
+}
+
+/* --- rows ------------------------------------------------------------ */
+
+.rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.row { border-bottom: 1px solid var(--rule-soft); }
+
+.row.hide { display: none; }
+
+.row-top {
+  display: grid;
+  grid-template-columns: 1fr 190px 96px;
+  align-items: center;
+  gap: 20px;
+  width: 100%;
+  padding: 15px 4px;
+  border: 0;
+  background: none;
+  text-align: left;
+}
+
+.row-top:hover { background: rgba(0, 0, 0, 0.018); }
+
+.row-url {
+  font: 400 13px/1.4 var(--mono);
+  color: var(--ink);
+  overflow-wrap: anywhere;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.row-url .marker {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--unknown);
+  transform: translateY(-1px);
+}
+
+.row.is-malicious  .marker { background: var(--malicious); }
+.row.is-suspicious .marker { background: var(--suspicious); }
+.row.is-harmless   .marker { background: var(--harmless); }
+
+/* The engine strip: one tick per scanning engine, coloured by its verdict.
+   Consensus reads as texture before you read any number. */
+.strip {
+  display: flex;
+  gap: 1px;
+  height: 20px;
+  align-items: stretch;
+}
+
+.strip i {
+  flex: 1 1 0;
+  min-width: 1px;
+  background: var(--unknown);
+  border-radius: 0.5px;
+}
+
+.strip i.malicious  { background: var(--malicious); }
+.strip i.suspicious { background: var(--suspicious); }
+.strip i.harmless   { background: var(--harmless); }
+.strip i.undetected { background: var(--unknown); opacity: 0.5; }
+
+.row-score {
+  justify-self: end;
+  font: 500 14px/1 var(--mono);
+  color: var(--ink-faint);
+  white-space: nowrap;
+}
+
+.row.is-malicious  .row-score { color: var(--malicious); }
+.row.is-suspicious .row-score { color: var(--suspicious); }
+.row.is-harmless   .row-score { color: var(--harmless); }
+
+.row-error {
+  grid-column: 1 / -1;
+  font-size: 13px;
+  color: var(--ink-mid);
+  padding-top: 4px;
+}
+
+/* --- expansion ------------------------------------------------------- */
+
+.detail {
+  overflow: hidden;
+  max-height: 0;
+  transition: max-height 0.28s ease;
+}
+
+.row.open .detail { max-height: 1600px; }
+
+.detail-inner {
+  padding: 6px 4px 22px;
+  columns: 260px 3;
+  column-gap: 26px;
+}
+
+.engine {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 4px 0;
+  break-inside: avoid;
+  font-size: 13px;
+  border-bottom: 1px solid var(--rule-soft);
+}
+
+.engine .name {
+  color: var(--ink-mid);
+  flex: none;
+  max-width: 44%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.engine .verdict {
+  margin-left: auto;
+  font: 400 12.5px/1.4 var(--mono);
+  text-align: right;
+  color: var(--ink-faint);
+  overflow-wrap: anywhere;
+}
+
+.engine.malicious  .verdict { color: var(--malicious); font-weight: 500; }
+.engine.suspicious .verdict { color: var(--suspicious); font-weight: 500; }
+.engine.harmless   .verdict { color: var(--harmless); }
+
+/* --- empty state ----------------------------------------------------- */
+
+.blank {
+  margin-top: 40px;
+  padding: 34px 0;
+  border-top: 1px solid var(--rule);
+  color: var(--ink-faint);
+  font-size: 14px;
+}
+
+.blank p { margin: 0; }
+
+/* --- responsive ------------------------------------------------------ */
+
+@media (max-width: 680px) {
+  .page { padding-top: 28px; }
+
+  .row-top {
+    grid-template-columns: 1fr 72px;
+    gap: 12px;
+  }
+
+  .strip {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    height: 14px;
+  }
+
+  .row-score { grid-row: 1; }
+
+  .detail-inner { columns: 1; }
+
+  .count { margin-left: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+  .run-text.is-quip { animation: none; }
+}
