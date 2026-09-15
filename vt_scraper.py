@@ -159,30 +159,69 @@ class VirusTotalScraper:
         opts.set_capability("goog:loggingPrefs", {"performance": "ALL"})
         return opts
 
+    # Files Chrome writes to claim a profile directory. A crashed or killed
+    # browser leaves them behind, and the next launch then refuses to start.
+    LOCK_FILES = ("lockfile", "SingletonLock", "SingletonSocket", "SingletonCookie")
+
+    def _clear_stale_locks(self) -> int:
+        """
+        Remove leftover lock files from the profile directory.
+
+        Only called after a failed start, so any lock present is by definition
+        not held by a browser we are talking to. Chrome recreates these on the
+        next launch.
+        """
+        removed = 0
+        for name in self.LOCK_FILES:
+            path = os.path.join(self.profile_dir, name)
+            try:
+                if os.path.lexists(path):
+                    os.remove(path)
+                    removed += 1
+            except OSError:
+                pass
+        return removed
+
     def start(self) -> None:
         if self.driver:
             return
 
-        # A locked or corrupted profile directory is the most common cause of
-        # a startup crash, so if the first attempt fails, retry once without
-        # it. That costs the cached Cloudflare clearance but gets a working
-        # browser, and it distinguishes a profile problem from everything else.
+        # Escalate rather than give up on the profile: a stale lock is the
+        # usual cause and is trivially fixable, so clear it and try again
+        # before falling back to a profile-less session. Losing the profile
+        # means re-earning the Cloudflare clearance on every run, which is
+        # slow enough to be worth one extra attempt to avoid.
         try:
             self.driver = webdriver.Chrome(options=self._options(use_profile=True))
             self.profile_in_use = True
+            return self._finish_start()
         except Exception as first_error:
-            try:
-                self.driver = webdriver.Chrome(options=self._options(use_profile=False))
-                self.profile_in_use = False
-                print(
-                    "Chrome would not start with the saved profile, so this "
-                    "session is running without it.\n"
-                    f"  Delete {self.profile_dir} to clear the problem permanently.\n"
-                    "  Check for a leftover chrome.exe holding the lock first."
-                )
-            except Exception as second_error:
-                raise RuntimeError(self._startup_help(first_error, second_error)) from None
+            pass
 
+        if self._clear_stale_locks():
+            try:
+                self.driver = webdriver.Chrome(options=self._options(use_profile=True))
+                self.profile_in_use = True
+                print(f"Cleared a stale lock in {self.profile_dir} and recovered.")
+                return self._finish_start()
+            except Exception:
+                pass
+
+        try:
+            self.driver = webdriver.Chrome(options=self._options(use_profile=False))
+            self.profile_in_use = False
+            print(
+                "Chrome would not start with the saved profile, so this "
+                "session is running without it.\n"
+                f"  Delete {self.profile_dir} to clear the problem permanently.\n"
+                "  Check for a leftover chrome.exe holding the lock first."
+            )
+        except Exception as second_error:
+            raise RuntimeError(self._startup_help(first_error, second_error)) from None
+
+        return self._finish_start()
+
+    def _finish_start(self) -> None:
         self.driver.set_page_load_timeout(self.page_timeout)
         self.driver.execute_cdp_cmd(
             "Page.addScriptToEvaluateOnNewDocument", {"source": STEALTH_JS}

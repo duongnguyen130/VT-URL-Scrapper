@@ -30,7 +30,7 @@ const CATS = ["malicious", "suspicious", "harmless", "undetected"];
 let collected = [];
 let scanning = false;
 let mode = "all";
-let done = 0;
+let completed = 0;
 let total = 0;
 
 /* -------------------------------------------------------------- quips --
@@ -140,7 +140,7 @@ async function startScan() {
 
   scanning = true;
   collected = [];
-  done = 0;
+  completed = 0;
   total = 0;
   el.rows.innerHTML = "";
   el.scanBtn.disabled = true;
@@ -195,11 +195,11 @@ async function startScan() {
           showFact(msg.url);
           armIdleQuips();
         } else if (msg.event === "result") {
-          done += 1;
+          completed += 1;
           collected.push(msg);
           insertCard(msg);
-          el.runCount.textContent = `${done} / ${total}`;
-          el.runFill.style.width = `${(done / total) * 100}%`;
+          el.runCount.textContent = `${completed} / ${total}`;
+          el.runFill.style.width = `${(completed / total) * 100}%`;
           renderStats();
           applyFilter();
           armIdleQuips();

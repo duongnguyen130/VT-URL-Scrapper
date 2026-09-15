@@ -127,6 +127,13 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         path = self.path.split("?", 1)[0]
 
+        if path == "/favicon.ico":
+            # No icon shipped; 204 keeps it out of the log.
+            self.send_response(204)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return
+
         if path == "/api/config":
             self._send_json({
                 "delay": DEFAULT_DELAY,
