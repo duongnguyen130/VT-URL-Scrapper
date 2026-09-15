@@ -20,22 +20,30 @@ Run:
 Environment:
     HOST=127.0.0.1                        bind address
     PORT=5000                             bind port
-    SCAN_DELAY=6                          seconds between lookups
-    MAX_URLS=60                           batch ceiling
+    SCAN_DELAY=2                          min seconds between request starts
+    WORKERS=3                             concurrent headless browsers
+    MAX_URLS=500                          batch ceiling
     VT_PROFILE_DIR=~/.vt_scanner_profile  keeps the clearance cookie
 """
 
 import json
 import os
-import time
+import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import vt_scraper
 
 HOST = os.environ.get("HOST", "127.0.0.1")
 PORT = int(os.environ.get("PORT", "5000"))
-DEFAULT_DELAY = float(os.environ.get("SCAN_DELAY", "6"))
-MAX_URLS = int(os.environ.get("MAX_URLS", "60"))
+# Minimum gap between request starts across the whole pool, in seconds. This
+# is the throughput knob: the batch runs at roughly this rate per URL.
+DEFAULT_DELAY = float(os.environ.get("SCAN_DELAY", "2"))
+
+# Concurrent headless browsers. Each costs roughly 300 MB and clears
+# Cloudflare separately on first use, so more is not always faster.
+WORKERS = int(os.environ.get("WORKERS", "3"))
+
+MAX_URLS = int(os.environ.get("MAX_URLS", "500"))
 
 STATIC_DIR = os.path.realpath(
     os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
@@ -120,7 +128,11 @@ class Handler(BaseHTTPRequestHandler):
         path = self.path.split("?", 1)[0]
 
         if path == "/api/config":
-            self._send_json({"delay": DEFAULT_DELAY, "max_urls": MAX_URLS})
+            self._send_json({
+                "delay": DEFAULT_DELAY,
+                "max_urls": MAX_URLS,
+                "workers": WORKERS,
+            })
             return
 
         self._serve_static("index.html" if path == "/" else path.lstrip("/"))
@@ -159,6 +171,10 @@ class Handler(BaseHTTPRequestHandler):
             delay = float(payload.get("delay", DEFAULT_DELAY))
         except (ValueError, TypeError):
             delay = DEFAULT_DELAY
+        try:
+            workers = max(1, min(8, int(payload.get("workers", WORKERS))))
+        except (ValueError, TypeError):
+            workers = WORKERS
 
         if not urls:
             self._send_json({"error": "No usable URLs found in that text."}, 400)
@@ -170,9 +186,9 @@ class Handler(BaseHTTPRequestHandler):
             )
             return
 
-        self._stream_scan(urls, delay)
+        self._stream_scan(urls, delay, workers)
 
-    def _stream_scan(self, urls, delay):
+    def _stream_scan(self, urls, delay, workers):
         self.send_response(200)
         self.send_header("Content-Type", "application/x-ndjson")
         self.send_header("Transfer-Encoding", "chunked")
@@ -180,37 +196,40 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("X-Accel-Buffering", "no")
         self.end_headers()
 
-        if not self._chunk(json.dumps({"event": "start", "total": len(urls)}) + "\n"):
+        # Workers emit concurrently, so every write goes through one lock.
+        write_lock = threading.Lock()
+        alive = [True]
+
+        def emit(obj):
+            with write_lock:
+                if not alive[0]:
+                    return False
+                if not self._chunk(json.dumps(obj) + "\n"):
+                    alive[0] = False
+                    return False
+                return True
+
+        workers = min(workers, len(urls))
+        if not emit({"event": "start", "total": len(urls), "workers": workers}):
             return
 
-        scraper = vt_scraper.get_scraper()
+        pool = vt_scraper.get_pool(size=workers, min_interval=delay)
 
-        for i, url in enumerate(urls):
-            if not self._chunk(
-                json.dumps({"event": "progress", "index": i, "url": url}) + "\n"
-            ):
-                return  # client closed the tab; stop scanning
+        pool.run(
+            urls,
+            on_started=lambda i, url: emit(
+                {"event": "progress", "index": i, "url": url}
+            ),
+            on_result=lambda i, res: emit({**res, "event": "result", "index": i}),
+        )
 
+        if alive[0]:
+            emit({"event": "done"})
             try:
-                result = scraper.lookup(url)
-            except Exception as exc:
-                result = {"url": url, "stats": None, "vendors": {},
-                          "source": None, "error": str(exc)}
-
-            result["event"] = "result"
-            result["index"] = i
-            if not self._chunk(json.dumps(result) + "\n"):
-                return
-
-            if i < len(urls) - 1:
-                time.sleep(delay)
-
-        self._chunk(json.dumps({"event": "done"}) + "\n")
-        try:
-            self.wfile.write(b"0\r\n\r\n")
-            self.wfile.flush()
-        except (BrokenPipeError, ConnectionResetError):
-            pass
+                self.wfile.write(b"0\r\n\r\n")
+                self.wfile.flush()
+            except (BrokenPipeError, ConnectionResetError):
+                pass
 
 
 def main():
@@ -218,7 +237,7 @@ def main():
     server = ThreadingHTTPServer((HOST, PORT), Handler)
     server.daemon_threads = True
 
-    print("Chrome runs headless — no window will open.")
+    print(f"Chrome runs headless — no window will open. {WORKERS} worker(s).")
     print(f"Listening on http://{HOST}:{PORT}")
     try:
         server.serve_forever()
