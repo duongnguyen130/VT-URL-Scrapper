@@ -21,6 +21,7 @@ const el = {
   filter: $("filter"),
   expandAll: $("expandAll"),
   exportBtn: $("exportBtn"),
+  modeBadge: $("modeBadge"),
   rows: $("rows"),
   blank: $("blank"),
 };
@@ -103,6 +104,7 @@ fetch("/api/config")
   .then((c) => {
     el.delay.value = c.delay;
     el.workers.value = c.workers;
+    el.modeBadge.textContent = c.headless ? "headless chrome" : "visible chrome";
   })
   .catch(() => {});
 

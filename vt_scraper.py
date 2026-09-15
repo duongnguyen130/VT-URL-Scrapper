@@ -35,6 +35,21 @@ PROFILE_DIR = os.environ.get(
 
 IS_WINDOWS = os.name == "nt"
 
+
+def _env_flag(name: str, default: bool) -> bool:
+    """Read a boolean environment variable tolerantly."""
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() not in ("0", "false", "no", "off", "")
+
+
+# HEADLESS=0 shows the browser windows. Useful when a lookup is failing and
+# you need to see what VirusTotal actually served — a Cloudflare interstitial
+# and an empty result page are indistinguishable from the logs alone.
+# One window opens per worker, so pair HEADLESS=0 with WORKERS=1.
+HEADLESS = _env_flag("HEADLESS", True)
+
 # Set CHROME_BINARY to use a specific Chrome. Worth doing on a managed
 # workstation: without it Selenium Manager downloads its own Chrome for
 # Testing build into %USERPROFILE%\.cache, and an unsigned binary there is
@@ -114,8 +129,14 @@ class VirusTotalScraper:
     chromedriver itself through Selenium Manager, so nothing needs to be on PATH.
     """
 
-    def __init__(self, page_timeout: int = 45, profile_suffix: str = "") -> None:
+    def __init__(
+        self,
+        page_timeout: int = 45,
+        profile_suffix: str = "",
+        headless: bool | None = None,
+    ) -> None:
         self.page_timeout = page_timeout
+        self.headless = HEADLESS if headless is None else headless
         # Each browser needs its own profile directory. Chrome refuses to
         # share one --user-data-dir between concurrent instances.
         self.profile_dir = PROFILE_DIR + profile_suffix
@@ -127,7 +148,8 @@ class VirusTotalScraper:
 
     def _options(self, use_profile: bool = True) -> Options:
         opts = Options()
-        opts.add_argument("--headless=new")
+        if self.headless:
+            opts.add_argument("--headless=new")
         opts.add_argument(f"--user-agent={UA}")
         opts.add_argument("--window-size=1440,1000")
         opts.add_argument("--disable-blink-features=AutomationControlled")
@@ -455,11 +477,19 @@ class ScraperPool:
     i.e. until min_interval drops below lookup_time / workers.
     """
 
-    def __init__(self, size: int = 1, min_interval: float = 2.0) -> None:
+    def __init__(
+        self,
+        size: int = 1,
+        min_interval: float = 2.0,
+        headless: bool | None = None,
+    ) -> None:
         self.size = max(1, size)
         self.min_interval = max(0.0, min_interval)
+        self.headless = HEADLESS if headless is None else headless
         self._scrapers = [
-            VirusTotalScraper(profile_suffix=f"-{i}" if i else "")
+            VirusTotalScraper(
+                profile_suffix=f"-{i}" if i else "", headless=self.headless
+            )
             for i in range(self.size)
         ]
         self._gate = threading.Lock()
@@ -533,16 +563,22 @@ class ScraperPool:
 _pool: ScraperPool | None = None
 
 
-def get_pool(size: int = 1, min_interval: float = 2.0) -> ScraperPool:
+def get_pool(
+    size: int = 1, min_interval: float = 2.0, headless: bool | None = None
+) -> ScraperPool:
     """
-    Return the shared pool, rebuilding it if the worker count changed.
-    min_interval is cheap to adjust and never forces a rebuild.
+    Return the shared pool, rebuilding it if the worker count or headless
+    setting changed — both are baked into the running browsers. min_interval
+    is cheap to adjust and never forces a rebuild.
     """
     global _pool
-    if _pool is None or _pool.size != max(1, size):
+    want_headless = HEADLESS if headless is None else headless
+
+    if _pool is None or _pool.size != max(1, size) or _pool.headless != want_headless:
         if _pool is not None:
             _pool.close()
-        _pool = ScraperPool(size=size, min_interval=min_interval)
+        _pool = ScraperPool(size=size, min_interval=min_interval,
+                            headless=want_headless)
     else:
         _pool.min_interval = max(0.0, min_interval)
     return _pool

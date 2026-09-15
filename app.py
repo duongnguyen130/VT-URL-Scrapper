@@ -20,6 +20,7 @@ Run:
 Environment:
     HOST=127.0.0.1                        bind address
     PORT=5000                             bind port
+    HEADLESS=1                            0 shows the browser windows
     SCAN_DELAY=2                          min seconds between request starts
     WORKERS=3                             concurrent headless browsers
     MAX_URLS=500                          batch ceiling
@@ -44,6 +45,9 @@ DEFAULT_DELAY = float(os.environ.get("SCAN_DELAY", "2"))
 WORKERS = int(os.environ.get("WORKERS", "3"))
 
 MAX_URLS = int(os.environ.get("MAX_URLS", "500"))
+
+# Read from vt_scraper so there is one definition of the flag.
+HEADLESS = vt_scraper.HEADLESS
 
 STATIC_DIR = os.path.realpath(
     os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
@@ -139,6 +143,7 @@ class Handler(BaseHTTPRequestHandler):
                 "delay": DEFAULT_DELAY,
                 "max_urls": MAX_URLS,
                 "workers": WORKERS,
+                "headless": HEADLESS,
             })
             return
 
@@ -220,7 +225,9 @@ class Handler(BaseHTTPRequestHandler):
         if not emit({"event": "start", "total": len(urls), "workers": workers}):
             return
 
-        pool = vt_scraper.get_pool(size=workers, min_interval=delay)
+        pool = vt_scraper.get_pool(
+            size=workers, min_interval=delay, headless=HEADLESS
+        )
 
         pool.run(
             urls,
@@ -244,7 +251,12 @@ def main():
     server = ThreadingHTTPServer((HOST, PORT), Handler)
     server.daemon_threads = True
 
-    print(f"Chrome runs headless — no window will open. {WORKERS} worker(s).")
+    if HEADLESS:
+        print(f"Chrome runs headless — no window will open. {WORKERS} worker(s).")
+    else:
+        print(f"Chrome runs visible — {WORKERS} window(s) will open.")
+        if WORKERS > 1:
+            print("  Set WORKERS=1 unless you actually want that many windows.")
     print(f"Listening on http://{HOST}:{PORT}")
     try:
         server.serve_forever()

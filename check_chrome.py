@@ -32,7 +32,8 @@ def main():
     else:
         print("           will be created on first run")
 
-    print("\nStarting headless Chrome")
+    mode = "headless" if vt_scraper.HEADLESS else "visible"
+    print(f"\nStarting Chrome ({mode})")
     scraper = vt_scraper.VirusTotalScraper()
     try:
         scraper.start()
