@@ -1,0 +1,15 @@
+# URL Reputation Bench — dependencies
+# Target: Python 3.12
+#
+#   python3.12 -m venv .venv
+#   source .venv/bin/activate
+#   pip install -r requirements.txt
+#
+# Selenium is the only third-party package. The web UI is served by
+# http.server from the standard library.
+#
+# Chrome or Chromium must be installed. chromedriver must NOT be — Selenium
+# Manager (built into Selenium 4.x) downloads and version-matches it on first
+# run. Installing your own chromedriver usually causes a version mismatch.
+
+selenium==4.44.0

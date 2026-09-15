@@ -1,56 +1,34 @@
-/* URL Reputation Bench — client */
+/* URL Bench — client */
 
 const $ = (id) => document.getElementById(id);
 
 const el = {
   input: $("input"),
   scanBtn: $("scanBtn"),
+  resetBtn: $("resetBtn"),
   delay: $("delay"),
   urlCount: $("urlCount"),
-  modeBadge: $("modeBadge"),
   run: $("run"),
   runFill: $("runFill"),
-  runText: $("runText"),
   runCount: $("runCount"),
+  runText: $("runText"),
   board: $("board"),
-  rows: $("rows"),
-  tally: $("tally"),
-  blank: $("blank"),
-  flaggedOnly: $("flaggedOnly"),
+  stats: $("stats"),
+  notice: $("notice"),
+  noticeCount: $("noticeCount"),
+  noticeRest: $("noticeRest"),
+  filter: $("filter"),
+  expandAll: $("expandAll"),
   exportBtn: $("exportBtn"),
-  resetBtn: $("resetBtn"),
+  rows: $("rows"),
+  blank: $("blank"),
 };
 
 const CATS = ["malicious", "suspicious", "harmless", "undetected"];
+
 let collected = [];
 let scanning = false;
-
-/* ---------------------------------------------------------------- setup */
-
-fetch("/api/config")
-  .then((r) => r.json())
-  .then((c) => {
-    el.modeBadge.textContent = "headless chrome";
-    el.delay.value = c.delay;
-  })
-  .catch(() => {
-    el.modeBadge.textContent = "server unreachable";
-  });
-
-el.input.addEventListener("input", updateCount);
-
-function countUrls() {
-  return el.input.value
-    .split("\n")
-    .map((l) => l.trim())
-    .filter((l) => l && !l.startsWith("#")).length;
-}
-
-function updateCount() {
-  const n = countUrls();
-  el.urlCount.textContent = n ? `${n} ${n === 1 ? "URL" : "URLs"}` : "";
-}
-
+let mode = "all";
 
 /* -------------------------------------------------------------- quips --
    Shown only in dead air: while Chrome boots and clears Cloudflare, and
@@ -114,17 +92,40 @@ function showFact(text) {
   el.runText.textContent = text;
 }
 
-/* ----------------------------------------------------------------- scan */
+/* --------------------------------------------------------------- setup */
 
-el.scanBtn.addEventListener("click", startScan);
+fetch("/api/config")
+  .then((r) => r.json())
+  .then((c) => {
+    el.delay.value = c.delay;
+  })
+  .catch(() => {});
+
+el.input.addEventListener("input", updateCount);
 
 el.input.addEventListener("keydown", (e) => {
   if ((e.metaKey || e.ctrlKey) && e.key === "Enter") startScan();
 });
 
+function countUrls() {
+  return el.input.value
+    .split("\n")
+    .map((l) => l.trim())
+    .filter((l) => l && !l.startsWith("#")).length;
+}
+
+function updateCount() {
+  const n = countUrls();
+  el.urlCount.textContent = n ? `${n} ${n === 1 ? "URL" : "URLs"}` : "";
+}
+
+/* ----------------------------------------------------------------- scan */
+
+el.scanBtn.addEventListener("click", startScan);
+
 async function startScan() {
   if (scanning) return;
-  const text = el.input.value;
+
   if (!countUrls()) {
     el.run.hidden = false;
     el.runCount.textContent = "";
@@ -143,7 +144,7 @@ async function startScan() {
   el.runFill.style.width = "0%";
   el.runCount.textContent = "";
   showQuips("boot");
-  renderTally();
+  renderStats();
 
   let total = 0;
 
@@ -151,7 +152,10 @@ async function startScan() {
     const res = await fetch("/api/scan", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text, delay: Number(el.delay.value) || 0 }),
+      body: JSON.stringify({
+        text: el.input.value,
+        delay: Number(el.delay.value) || 0,
+      }),
     });
 
     if (!res.ok) {
@@ -189,9 +193,9 @@ async function startScan() {
           clearTimeout(slowTimer);
           if (msg.index < total - 1) showQuips("pause");
           collected.push(msg);
-          el.rows.appendChild(buildRow(msg));
+          el.rows.appendChild(buildCard(msg));
           el.runFill.style.width = `${((msg.index + 1) / total) * 100}%`;
-          renderTally();
+          renderStats();
           applyFilter();
         } else if (msg.event === "done") {
           showFact(`Finished ${total} ${total === 1 ? "URL" : "URLs"}`);
@@ -212,95 +216,141 @@ async function startScan() {
 
 /* --------------------------------------------------------------- render */
 
-function verdictOf(stats) {
-  if (!stats) return "unknown";
-  if (stats.malicious > 0) return "malicious";
-  if (stats.suspicious > 0) return "suspicious";
-  return "harmless";
+function severity(res) {
+  if (res.error || !res.stats) return "none";
+  if (res.stats.malicious > 0) return "high";
+  if (res.stats.suspicious > 0) return "medium";
+  return "clean";
 }
 
-function buildRow(res) {
-  const li = document.createElement("li");
-  li.className = "row";
+const BADGE = {
+  high: "malicious",
+  medium: "suspicious",
+  clean: "no detections",
+  none: "no result",
+};
+
+function buildCard(res) {
+  const sev = severity(res);
+  const card = document.createElement("article");
+  card.className = `find ${sev}`;
+  card.dataset.sev = sev;
 
   if (res.error) {
-    li.innerHTML = `
-      <div class="row-top">
-        <span class="row-url"><i class="marker"></i>${escapeHtml(res.url)}</span>
-        <span></span>
-        <span class="row-score">—</span>
-        <span class="row-error">${escapeHtml(res.error)}</span>
+    card.innerHTML = `
+      <div class="find-head">
+        <span class="badge">${BADGE.none}</span>
+        <span class="locus">—</span>
+      </div>
+      <div class="find-body">
+        <div class="excerpt">${esc(res.url)}</div>
+        <p class="find-error">${esc(res.error)}</p>
       </div>`;
-    return li;
+    return card;
   }
 
   const stats = res.stats || {};
   const flagged = (stats.malicious || 0) + (stats.suspicious || 0);
   const total = CATS.reduce((a, c) => a + (stats[c] || 0), 0);
-  li.classList.add("is-" + verdictOf(stats));
 
-  // One tick per engine, ordered so findings cluster at the left edge.
+  // Sort by severity so findings pack against the left edge of the strip.
   const entries = Object.entries(res.vendors).sort(
-    (a, b) => CATS.indexOf(a[1].category) - CATS.indexOf(b[1].category)
+    (a, b) =>
+      CATS.indexOf(a[1].category) - CATS.indexOf(b[1].category) ||
+      a[0].localeCompare(b[0])
   );
-  const ticks = entries
-    .map(([, v]) => `<i class="${cls(v.category)}"></i>`)
-    .join("");
+
+  const ticks = entries.map(([, v]) => `<i class="${cls(v.category)}"></i>`).join("");
 
   const engines = entries
     .map(
       ([name, v]) => `
       <div class="engine ${cls(v.category)}">
-        <span class="name">${escapeHtml(name)}</span>
-        <span class="verdict">${escapeHtml(v.result)}</span>
+        <span class="name">${esc(name)}</span>
+        <span class="verdict">${esc(v.result)}</span>
       </div>`
     )
     .join("");
 
-  li.innerHTML = `
-    <button class="row-top" type="button">
-      <span class="row-url"><i class="marker"></i>${escapeHtml(res.url)}</span>
-      <span class="strip">${ticks}</span>
-      <span class="row-score">${flagged} / ${total}</span>
-    </button>
-    <div class="detail"><div class="detail-inner">${engines}</div></div>`;
+  card.innerHTML = `
+    <div class="find-head">
+      <span class="badge ${sev === "clean" || sev === "none" ? "" : sev}">${BADGE[sev]}</span>
+      <span class="locus">${flagged} of ${total} engines</span>
+      <div class="right">
+        <button class="btn btn-ghost btn-sm toggle" type="button">Engines</button>
+      </div>
+    </div>
+    <div class="find-body">
+      <div class="excerpt">${esc(res.url)}</div>
+      <div class="strip">${ticks}</div>
+      <div class="engines"><div class="engines-inner">${engines}</div></div>
+    </div>`;
 
-  li.querySelector(".row-top").addEventListener("click", () =>
-    li.classList.toggle("open")
-  );
+  card.querySelector(".toggle").addEventListener("click", () => {
+    card.classList.toggle("open");
+  });
 
-  li.dataset.flagged = flagged > 0 ? "1" : "0";
-  return li;
+  return card;
 }
 
 function cls(c) {
   return CATS.includes(c) ? c : "undetected";
 }
 
-function renderTally() {
+function renderStats() {
   const n = collected.length;
-  const flagged = collected.filter(
-    (r) => r.stats && (r.stats.malicious || r.stats.suspicious)
-  ).length;
-  const failed = collected.filter((r) => r.error).length;
+  const high = collected.filter((r) => severity(r) === "high").length;
+  const med = collected.filter((r) => severity(r) === "medium").length;
+  const failed = collected.filter((r) => severity(r) === "none").length;
+  const clean = n - high - med - failed;
 
-  const parts = [`<span><b>${n}</b> scanned</span>`];
-  if (flagged) parts.push(`<span><b>${flagged}</b> flagged</span>`);
-  if (n - flagged - failed > 0)
-    parts.push(`<span><b>${n - flagged - failed}</b> clean</span>`);
-  if (failed) parts.push(`<span><b>${failed}</b> no result</span>`);
+  el.stats.innerHTML = `
+    <div class="stat"><b>${n}</b><span>Scanned</span></div>
+    <div class="stat is-high"><b>${high}</b><span>Malicious</span></div>
+    <div class="stat is-medium"><b>${med}</b><span>Suspicious</span></div>
+    <div class="stat"><b>${clean}</b><span>No detections</span></div>`;
 
-  el.tally.innerHTML = parts.join("");
+  const flagged = high + med;
+  el.notice.hidden = flagged === 0;
+  if (flagged) {
+    el.noticeCount.textContent = `${flagged} of ${n}`;
+    el.noticeRest.textContent =
+      flagged === 1
+        ? "URL was flagged by at least one engine."
+        : "URLs were flagged by at least one engine.";
+  }
+
+  el.exportBtn.disabled = n === 0;
 }
 
+/* --------------------------------------------------------------- filter */
+
+el.filter.addEventListener("click", (e) => {
+  const btn = e.target.closest("button[data-f]");
+  if (!btn) return;
+  mode = btn.dataset.f;
+  el.filter.querySelectorAll("button").forEach((b) => {
+    b.setAttribute("aria-pressed", String(b === btn));
+  });
+  applyFilter();
+});
+
 function applyFilter() {
-  const only = el.flaggedOnly.checked;
-  el.rows.querySelectorAll(".row").forEach((row) => {
-    row.classList.toggle("hide", only && row.dataset.flagged !== "1");
+  el.rows.querySelectorAll(".find").forEach((card) => {
+    const sev = card.dataset.sev;
+    const show =
+      mode === "all" ||
+      (mode === "flagged" && (sev === "high" || sev === "medium")) ||
+      (mode === "clean" && sev === "clean");
+    card.classList.toggle("hide", !show);
   });
 }
 
-el.flaggedOnly.addEventListener("change", applyFilter);
+el.expandAll.addEventListener("change", () => {
+  el.rows.querySelectorAll(".find").forEach((card) => {
+    card.classList.toggle("open", el.expandAll.checked);
+  });
+});
 
 /* --------------------------------------------------------------- extras */
 
@@ -329,7 +379,7 @@ el.resetBtn.addEventListener("click", () => {
   updateCount();
 });
 
-function escapeHtml(s) {
+function esc(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({
     "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
   }[c]));

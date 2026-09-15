@@ -1,0 +1,584 @@
+/* ==========================================================================
+   URL Bench stylesheet
+
+   Built on the SSN Sweep token set so the two tools read as one suite. Token
+   names are identical — --bg, --surface, --line, --text-2, --red, --radius
+   and the rest behave exactly as they do there.
+
+   Same discipline, one meaning across: red is reserved and never decorative.
+   In SSN Sweep a red block means exposed PII. Here it means an engine flagged
+   the URL. Amber is a suspicious verdict. Nothing else on the page is allowed
+   to be either colour, so a saturated pixel is always a finding.
+
+   Clean and unrated verdicts get no hue at all — they are the absence of a
+   signal, and colouring them would put three hues in competition on every
+   row. They are separated by two weights of slate instead.
+
+   Dark throughout. To restore the light palette, lift the light :root block
+   from the SSN Sweep sheet; every token name matches.
+
+   Sections: theme tokens, top bar, shell, intake, controls, progress,
+   stats, toolbar, finding cards, engine strip, engine list, states,
+   responsive.
+   ========================================================================== */
+
+:root {
+  color-scheme: dark;
+
+  --bg:        #0E1216;
+  --surface:   #161B21;
+  --surface-2: #1B2128;
+  --line:      #262E37;
+  --line-soft: #1F262E;
+  --text:      #E8ECF1;
+  --text-2:    #A0AAB8;
+  --text-3:    #6F7B8A;
+
+  --red:       #E04A3C;
+  --red-deep:  #B02B1E;
+  --red-soft:  #2A1614;
+  --amber:     #E0A244;
+  --amber-soft:#241C10;
+  --slate-soft:#212932;
+
+  /* Verdict weights with no hue: present-and-clean, and never-rated. */
+  --tick-clean: #414C59;
+  --tick-void:  #222A32;
+
+  --radius:    14px;
+  --radius-sm: 9px;
+  --shadow:    0 1px 2px rgba(0, 0, 0, .4);
+
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI Variable Text", "Segoe UI",
+          Inter, Roboto, system-ui, sans-serif;
+  --mono: ui-monospace, "Cascadia Code", "Cascadia Mono", "SF Mono", Consolas,
+          "DejaVu Sans Mono", monospace;
+}
+
+* { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 15px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+code {
+  font-family: var(--mono);
+  font-size: .88em;
+  background: var(--surface-2);
+  border: 1px solid var(--line-soft);
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+
+:where(button, input, textarea, summary, a):focus-visible {
+  outline: 2px solid var(--red);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* ---------- top bar ---------- */
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: color-mix(in srgb, var(--surface) 82%, transparent);
+  backdrop-filter: saturate(180%) blur(12px);
+  border-bottom: 1px solid var(--line);
+}
+
+.topbar-inner {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 12px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.brand { display: flex; align-items: center; gap: 10px; }
+
+.brand-mark {
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  background: var(--red);
+  box-shadow: inset 0 0 0 3px var(--surface), 0 0 0 1px var(--red);
+}
+
+.brand-name { font-weight: 650; letter-spacing: -.01em; }
+
+.pill {
+  font-size: 12px;
+  padding: 4px 11px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  color: var(--text-3);
+  background: var(--surface-2);
+  font-family: var(--mono);
+}
+
+/* ---------- shell ---------- */
+
+.shell { max-width: 960px; margin: 0 auto; padding: 28px 24px 96px; }
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.intake { padding: 26px; }
+
+.card-head h1 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 650;
+  letter-spacing: -.02em;
+}
+
+.card-head .sub {
+  margin: 6px 0 20px;
+  color: var(--text-2);
+  font-size: 14px;
+  max-width: 62ch;
+}
+
+/* ---------- intake ---------- */
+
+textarea {
+  width: 100%;
+  resize: vertical;
+  min-height: 150px;
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 1.75;
+  color: var(--text);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+}
+
+textarea::placeholder { color: var(--text-3); }
+
+textarea:focus {
+  outline: none;
+  border-color: var(--text-3);
+}
+
+/* ---------- controls ---------- */
+
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line-soft);
+}
+
+.stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13.5px;
+  color: var(--text-2);
+}
+.stepper input {
+  width: 66px;
+  padding: 7px 10px;
+  font-family: var(--mono);
+  font-size: 13.5px;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+}
+.stepper .unit { color: var(--text-3); }
+
+.loaded { font-size: 13px; color: var(--text-2); font-family: var(--mono); }
+
+.actions { margin-left: auto; display: flex; gap: 8px; }
+
+.btn {
+  font: inherit;
+  font-size: 14px;
+  font-weight: 550;
+  padding: 9px 18px;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background .14s ease, border-color .14s ease, color .14s ease;
+}
+.btn-primary { background: var(--text); color: var(--bg); }
+.btn-primary:hover { background: var(--red); color: #fff; }
+.btn-ghost { background: transparent; border-color: var(--line); color: var(--text); }
+.btn-ghost:hover { background: var(--surface-2); }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.btn-sm { font-size: 13px; padding: 6px 12px; }
+
+/* ---------- progress ---------- */
+
+.run { margin-top: 16px; padding: 16px 20px; }
+
+.run-line { display: flex; align-items: center; gap: 14px; }
+
+.run-track {
+  flex: 1;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--slate-soft);
+  overflow: hidden;
+}
+
+.run-fill {
+  height: 100%;
+  width: 0;
+  border-radius: 999px;
+  background: var(--text-2);
+  transition: width .35s ease;
+}
+
+.run-count {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-2);
+  white-space: nowrap;
+}
+
+/* Holds either the live URL or a quip. Fixed height so swapping between the
+   two never nudges the layout. */
+.run-text {
+  margin: 10px 0 0;
+  min-height: 1.5em;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Quips are dead-air filler, so they sit back: sans, dimmer, no mono. */
+.run-text.is-quip {
+  font-family: var(--sans);
+  font-size: 13.5px;
+  color: var(--text-3);
+  animation: quip-in .3s ease;
+}
+
+@keyframes quip-in {
+  from { opacity: 0; transform: translateY(3px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* ---------- stats ---------- */
+
+.results { margin-top: 28px; }
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.stat {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 14px 16px;
+}
+.stat b {
+  display: block;
+  font-size: 26px;
+  font-weight: 650;
+  letter-spacing: -.03em;
+  font-variant-numeric: tabular-nums;
+}
+.stat span {
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  color: var(--text-3);
+  font-weight: 600;
+}
+.stat.is-high b { color: var(--red); }
+.stat.is-medium b { color: var(--amber); }
+
+.notice {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  background: var(--red-soft);
+  border: 1px solid color-mix(in srgb, var(--red) 26%, transparent);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  font-size: 13.5px;
+  color: var(--text);
+  margin-bottom: 16px;
+}
+.notice b { font-weight: 650; }
+
+/* ---------- toolbar ---------- */
+
+.toolbar {
+  position: sticky;
+  top: 53px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 10px 0 14px;
+  background: linear-gradient(var(--bg) 78%, transparent);
+}
+
+.segmented {
+  display: inline-flex;
+  background: var(--slate-soft);
+  border-radius: var(--radius-sm);
+  padding: 3px;
+  gap: 2px;
+}
+.segmented button {
+  font: inherit;
+  font-size: 13px;
+  font-weight: 550;
+  text-transform: capitalize;
+  color: var(--text-2);
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  padding: 5px 13px;
+  cursor: pointer;
+}
+.segmented button[aria-pressed="true"] {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .45);
+}
+
+.toolbar .right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+
+.switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 13.5px;
+  color: var(--text-2);
+  cursor: pointer;
+  user-select: none;
+}
+.switch input { position: absolute; opacity: 0; width: 0; height: 0; }
+.switch .track {
+  width: 38px;
+  height: 22px;
+  border-radius: 999px;
+  background: var(--slate-soft);
+  border: 1px solid var(--line);
+  position: relative;
+  transition: background .16s ease, border-color .16s ease;
+}
+.switch .track::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--text-2);
+  transition: transform .16s ease, background .16s ease;
+}
+.switch input:checked + .track { background: var(--red); border-color: var(--red); }
+.switch input:checked + .track::after { transform: translateX(16px); background: #fff; }
+.switch input:focus-visible + .track { outline: 2px solid var(--red); outline-offset: 2px; }
+
+/* ---------- finding cards ---------- */
+
+.find {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  margin-bottom: 10px;
+  overflow: hidden;
+}
+.find.high { border-color: color-mix(in srgb, var(--red) 34%, var(--line)); }
+.find.medium { border-color: color-mix(in srgb, var(--amber) 30%, var(--line)); }
+.find.hide { display: none; }
+
+.find-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 11px 16px;
+  border-bottom: 1px solid var(--line-soft);
+  background: var(--surface-2);
+}
+
+.badge {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--slate-soft);
+  color: var(--text-2);
+}
+.badge.high { background: var(--red-soft); color: var(--red); }
+.badge.medium { background: var(--amber-soft); color: var(--amber); }
+
+.locus {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.find-head .right { margin-left: auto; display: flex; gap: 6px; align-items: center; }
+
+.find-body { padding: 16px; }
+
+.excerpt {
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 1.7;
+  word-break: break-all;
+  color: var(--text);
+}
+
+/* ---------- engine strip ----------
+   One tick per scanning engine, sorted so findings pack against the left
+   edge. The width of the red block is the detection count, which means a
+   batch can be triaged by shape before a single number is read. */
+
+.strip {
+  display: flex;
+  gap: 1px;
+  height: 18px;
+  margin-top: 12px;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.strip i {
+  flex: 1 1 0;
+  min-width: 1px;
+  background: var(--tick-void);
+}
+.strip i.malicious  { background: var(--red); }
+.strip i.suspicious { background: var(--amber); }
+.strip i.harmless   { background: var(--tick-clean); }
+
+/* ---------- engine list ---------- */
+
+.engines {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height .28s ease;
+}
+.find.open .engines { max-height: 2200px; }
+
+.engines-inner {
+  margin-top: 14px;
+  padding-top: 4px;
+  border-top: 1px solid var(--line-soft);
+  columns: 250px 3;
+  column-gap: 26px;
+}
+
+.engine {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 5px 0;
+  border-bottom: 1px solid var(--line-soft);
+  break-inside: avoid;
+  font-size: 13px;
+}
+
+.engine .name {
+  color: var(--text-2);
+  flex: none;
+  max-width: 46%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.engine .verdict {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 12px;
+  text-align: right;
+  color: var(--text-3);
+  word-break: break-word;
+}
+.engine.malicious .verdict  { color: var(--red); font-weight: 600; }
+.engine.suspicious .verdict { color: var(--amber); font-weight: 600; }
+
+/* ---------- states ---------- */
+
+.empty, .err {
+  border-radius: var(--radius);
+  padding: 40px 24px;
+  text-align: center;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  margin-top: 28px;
+}
+.empty strong { display: block; font-size: 17px; font-weight: 650; margin-bottom: 4px; }
+.empty span { color: var(--text-2); font-size: 14px; }
+
+.err {
+  text-align: left;
+  padding: 14px 16px;
+  margin-top: 0;
+  border-color: color-mix(in srgb, var(--red) 34%, transparent);
+  background: var(--red-soft);
+  font-size: 14px;
+}
+
+.find-error {
+  font-size: 13.5px;
+  color: var(--text-2);
+  margin-top: 10px;
+  line-height: 1.5;
+}
+
+/* ---------- responsive ---------- */
+
+@media (max-width: 720px) {
+  .shell { padding: 20px 16px 72px; }
+  .topbar-inner { padding: 12px 16px; }
+  .intake { padding: 20px; }
+  .stats { grid-template-columns: repeat(2, 1fr); }
+  .actions { margin-left: 0; width: 100%; }
+  .actions .btn { flex: 1; }
+  .toolbar { top: 0; }
+  .pill-quiet { display: none; }
+  .engines-inner { columns: 1; }
+  .loaded { width: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::after { transition: none !important; }
+  .run-text.is-quip { animation: none; }
+}

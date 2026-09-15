@@ -305,7 +305,7 @@ class VirusTotalScraper:
         return out
 
 
-# Module-level singleton, shared by the Flask app.
+# Module-level singleton, shared across requests by the server.
 _scraper: VirusTotalScraper | None = None
 
 

@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>URL Bench</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">
+      <span class="brand-mark"></span>
+      <span class="brand-name">URL Bench</span>
+    </div>
+    <span class="pill pill-quiet">headless chrome</span>
+  </div>
+</header>
+
+<main class="shell">
+
+  <section class="card intake">
+    <div class="card-head">
+      <h1>Check a batch of URLs against VirusTotal</h1>
+      <p class="sub">
+        One per line. Defanged indicators are fine — <code>hxxps://</code> and
+        <code>[.]</code> get rewritten before the lookup.
+      </p>
+    </div>
+
+    <textarea id="input" rows="7" spellcheck="false"
+      placeholder="https://example.com/login&#10;hxxps://secure-update[.]xyz/verify&#10;paypa1-billing.com/account"></textarea>
+
+    <div class="controls">
+      <label class="stepper">
+        Pause
+        <input id="delay" type="number" min="0" max="60" step="1" value="6">
+        <span class="unit">sec</span>
+      </label>
+      <span class="loaded" id="urlCount"></span>
+      <div class="actions">
+        <button class="btn btn-ghost" id="resetBtn" type="button">Clear</button>
+        <button class="btn btn-primary" id="scanBtn" type="button">Scan URLs</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="run card" id="run" hidden>
+    <div class="run-line">
+      <div class="run-track"><div class="run-fill" id="runFill"></div></div>
+      <span class="run-count" id="runCount"></span>
+    </div>
+    <p class="run-text" id="runText" aria-live="polite"></p>
+  </section>
+
+  <section class="results" id="board" hidden>
+
+    <div class="stats" id="stats"></div>
+
+    <div class="notice" id="notice" hidden>
+      <span><b id="noticeCount"></b> <span id="noticeRest"></span></span>
+    </div>
+
+    <div class="toolbar">
+      <div class="segmented" id="filter" role="group" aria-label="Filter results">
+        <button type="button" data-f="all" aria-pressed="true">all</button>
+        <button type="button" data-f="flagged" aria-pressed="false">flagged</button>
+        <button type="button" data-f="clean" aria-pressed="false">clean</button>
+      </div>
+      <div class="right">
+        <label class="switch">
+          <input type="checkbox" id="expandAll">
+          <span class="track"></span>
+          <span>Engines</span>
+        </label>
+        <button class="btn btn-ghost btn-sm" id="exportBtn" type="button">Export</button>
+      </div>
+    </div>
+
+    <div id="rows"></div>
+  </section>
+
+  <section class="empty" id="blank">
+    <strong>Nothing scanned yet</strong>
+    <span>Paste URLs above. Results stream in as each one comes back.</span>
+  </section>
+
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>

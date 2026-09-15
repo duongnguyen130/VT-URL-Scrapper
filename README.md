@@ -10,7 +10,7 @@ Built for Python 3.12 and Selenium 4.44.
 | File | Language | Job |
 |---|---|---|
 | `vt_scraper.py` | Python | Headless Chrome, CDP network capture |
-| `app.py` | Python | Flask server, streams results as NDJSON |
+| `app.py` | Python | stdlib http.server, streams results as NDJSON |
 | `static/index.html` | HTML | Page structure |
 | `static/style.css` | CSS | Visual design |
 | `static/app.js` | JavaScript | Stream consumption, rows, expansion |
@@ -24,6 +24,9 @@ python app.py
 ```
 
 Open http://127.0.0.1:5000
+
+Selenium is the only third-party package — the UI is served by `http.server`
+from the standard library, so there is no web framework to install or patch.
 
 Selenium 4.44 resolves chromedriver itself through Selenium Manager, so nothing
 needs to be on PATH. A Chrome or Chromium install is the only prerequisite.
@@ -68,6 +71,8 @@ textarea starts a scan.
 | `SCAN_DELAY` | `6` | Seconds between lookups |
 | `MAX_URLS` | `60` | Batch ceiling |
 | `VT_PROFILE_DIR` | `~/.vt_scanner_profile` | Chrome profile location |
+| `HOST` | `127.0.0.1` | Bind address |
+| `PORT` | `5000` | Bind port |
 
 Keep the delay reasonable. Hammering the web UI will get the source IP
 challenged, and the clearance cookie will not save you from that.
